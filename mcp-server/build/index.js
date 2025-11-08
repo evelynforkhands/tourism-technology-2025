@@ -24,42 +24,75 @@ let bearerToken = null;
 /**
  * Make authenticated request to DSAPI
  */
-async function makeDSAPIRequest(endpoint, options = {}) {
+async function makeDSAPIRequest(endpoint, options = {}, timeoutMs = 30000) {
     if (!bearerToken) {
-        throw new Error("Not authenticated. Call dsapi_authenticate first.");
+        await authenticate();
     }
     const url = `${DSAPI_BASE}${endpoint}`;
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            Authorization: `Bearer ${bearerToken}`,
-            "Content-Type": "application/json",
-            ...options.headers,
-        },
-    });
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                Authorization: `Bearer ${bearerToken}`,
+                "Content-Type": "application/json",
+                ...options.headers,
+            },
+            signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+            if (response.status === 401) {
+                await authenticate();
+                return makeDSAPIRequest(endpoint, options, timeoutMs);
+            }
+            const errorText = await response.text();
+            console.error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
+            throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
+        }
+        return (await response.json());
     }
-    return (await response.json());
+    catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+            throw new Error(`Request timeout after ${timeoutMs}ms: ${endpoint}`);
+        }
+        throw error;
+    }
 }
 /**
  * Authenticate with DSAPI
  */
-async function authenticate(username = DEFAULT_USERNAME, password = DEFAULT_PASSWORD) {
+async function authenticate(username = DEFAULT_USERNAME, password = DEFAULT_PASSWORD, timeoutMs = 10000) {
     const url = `${DSAPI_BASE}/Auth?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
-    const response = await fetch(url, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-    });
-    if (!response.ok) {
-        throw new Error(`Authentication failed: ${response.status}`);
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+            throw new Error(`Authentication failed: ${response.status}`);
+        }
+        const data = (await response.json());
+        bearerToken = data.access_token;
+        return data;
     }
-    const data = (await response.json());
-    bearerToken = data.access_token;
-    return data;
+    catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+            throw new Error(`Authentication timeout after ${timeoutMs}ms`);
+        }
+        throw error;
+    }
 }
 // ============================================================================
 // Server Setup
@@ -113,134 +146,94 @@ server.registerPrompt('echo', {
 // ============================================================================
 // Tool Registration
 // ============================================================================
-// // Authentication
-// server.registerTool(
-//   "dsapi_authenticate",
-//   {
-//     title: "DSAPI Authentication",
-//     description: "Authenticate with the DSAPI and obtain a bearer token. This must be called before using other tools.",
-//     inputSchema: {
-//       username: z
-//         .string()
-//         .optional()
-//         .describe("Username for authentication (default: TTFHACKTL)"),
-//       password: z.string().optional().describe("Password for authentication"),
-//     },
-//   },
-//   async ({ username, password }) => {
-//     const result = await authenticate(username, password);
-//     return {
-//       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-//       structuredContent: result as unknown as Record<string, unknown>,
-//     };
-//   }
-// );
-// // Search Management
-// server.registerTool(
-//   "dsapi_create_search",
-//   {
-//     title: "Create Search",
-//     description: "Create a search object to constrain results to a specific time window (dateFrom/dateTo). Returns a search ID to use in other queries.",
-//     inputSchema: {
-//       dateFrom: z
-//         .string()
-//         .describe("Start date in ISO 8601 format (e.g., '2025-11-01T00:00:00.000')"),
-//       dateTo: z
-//         .string()
-//         .describe("End date in ISO 8601 format (e.g., '2025-11-08T00:00:00.000')"),
-//     },
-//   },
-//   async ({ dateFrom, dateTo }) => {
-//     const result = await makeDSAPIRequest<{
-//       id: string;
-//       searchObject: { searchGeneral: { dateFrom: string; dateTo: string } };
-//     }>("/searches", {
-//       method: "POST",
-//       body: JSON.stringify({
-//         searchObject: {
-//           searchGeneral: { dateFrom, dateTo },
-//         },
-//       }),
-//     });
-//     return {
-//       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-//       structuredContent: result,
-//     };
-//   }
-// );
-// server.registerTool(
-//   "dsapi_update_search",
-//   {
-//     title: "Update Search",
-//     description: "Update an existing search object with new date ranges.",
-//     inputSchema: {
-//       searchId: z.string().describe("ID of the search object to update"),
-//       dateFrom: z.string().describe("Start date in ISO 8601 format"),
-//       dateTo: z.string().describe("End date in ISO 8601 format"),
-//     },
-//   },
-//   async ({ searchId, dateFrom, dateTo }) => {
-//     const result = await makeDSAPIRequest<{
-//       id: string;
-//       searchObject: { searchGeneral: { dateFrom: string; dateTo: string } };
-//     }>(`/searches/${searchId}`, {
-//       method: "PUT",
-//       body: JSON.stringify({
-//         searchObject: {
-//           id: searchId,
-//           searchGeneral: { dateFrom, dateTo },
-//         },
-//       }),
-//     });
-//     return {
-//       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-//       structuredContent: result,
-//     };
-//   }
-// );
-// // Filter Management
-// server.registerTool(
-//   "dsapi_create_filter",
-//   {
-//     title: "Create Filter",
-//     description: "Create a filter object to constrain results by types/categories, locations, guest cards, and holiday themes. Returns a filter ID.",
-//     inputSchema: {
-//       types: z
-//         .array(z.string())
-//         .optional()
-//         .describe("Array of type/category GUIDs to filter by"),
-//       holidayThemes: z
-//         .array(z.string())
-//         .optional()
-//         .describe("Array of holiday theme GUIDs"),
-//       locations: z.array(z.string()).optional().describe("Array of location GUIDs"),
-//       guestCards: z.array(z.string()).optional().describe("Array of guest card GUIDs"),
-//       name: z.string().optional().describe("Name filter string"),
-//     },
-//   },
-//   async ({ types, holidayThemes, locations, guestCards, name }) => {
-//     const result = await makeDSAPIRequest<{ id: string }>("/filters", {
-//       method: "POST",
-//       body: JSON.stringify({
-//         filterObject: {
-//           id: "00000000-0000-0000-0000-000000000000",
-//           filterGeneral: {},
-//           filterAddServices: {
-//             types: types || null,
-//             holidayThemes: holidayThemes || null,
-//             locations: locations || null,
-//             guestCards: guestCards || null,
-//             name: name || "",
-//           },
-//         },
-//       }),
-//     });
-//     return {
-//       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-//       structuredContent: result,
-//     };
-//   }
-// );
+// Search Management
+server.registerTool("dsapi_create_search", {
+    title: "Create Search",
+    description: "Create a search object to constrain results to a specific time window (dateFrom/dateTo). Returns a search ID to use in other queries.",
+    inputSchema: {
+        dateFrom: z
+            .string()
+            .describe("Start date in ISO 8601 format (e.g., '2025-11-01T00:00:00.000')"),
+        dateTo: z
+            .string()
+            .describe("End date in ISO 8601 format (e.g., '2025-11-08T00:00:00.000')"),
+    },
+}, async ({ dateFrom, dateTo }) => {
+    const result = await makeDSAPIRequest("/searches", {
+        method: "POST",
+        body: JSON.stringify({
+            searchObject: {
+                searchGeneral: { dateFrom, dateTo },
+            },
+        }),
+    });
+    return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        structuredContent: result,
+    };
+});
+server.registerTool("dsapi_update_search", {
+    title: "Update Search",
+    description: "Update an existing search object with new date ranges.",
+    inputSchema: {
+        searchId: z.string().describe("ID of the search object to update"),
+        dateFrom: z.string().describe("Start date in ISO 8601 format"),
+        dateTo: z.string().describe("End date in ISO 8601 format"),
+    },
+}, async ({ searchId, dateFrom, dateTo }) => {
+    const result = await makeDSAPIRequest(`/searches/${searchId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+            searchObject: {
+                id: searchId,
+                searchGeneral: { dateFrom, dateTo },
+            },
+        }),
+    });
+    return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        structuredContent: result,
+    };
+});
+// Filter Management
+server.registerTool("dsapi_create_filter", {
+    title: "Create Filter",
+    description: "Create a filter object to constrain results by types/categories, locations, guest cards, and holiday themes. Returns a filter ID.",
+    inputSchema: {
+        types: z
+            .array(z.string())
+            .optional()
+            .describe("Array of type/category GUIDs to filter by"),
+        holidayThemes: z
+            .array(z.string())
+            .optional()
+            .describe("Array of holiday theme GUIDs"),
+        locations: z.array(z.string()).optional().describe("Array of location GUIDs"),
+        guestCards: z.array(z.string()).optional().describe("Array of guest card GUIDs"),
+        name: z.string().optional().describe("Name filter string"),
+    },
+}, async ({ types, holidayThemes, locations, guestCards, name }) => {
+    const result = await makeDSAPIRequest("/filters", {
+        method: "POST",
+        body: JSON.stringify({
+            filterObject: {
+                id: "00000000-0000-0000-0000-000000000000",
+                filterGeneral: {},
+                filterAddServices: {
+                    types: types || null,
+                    holidayThemes: holidayThemes || null,
+                    locations: locations || null,
+                    guestCards: guestCards || null,
+                    name: name || "",
+                },
+            },
+        }),
+    });
+    return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        structuredContent: result,
+    };
+});
 // server.registerTool(
 //   "dsapi_update_filter",
 //   {
@@ -332,7 +325,7 @@ server.registerPrompt('echo', {
 //         .default("EUR")
 //         .describe("Currency code"),
 //       pageNo: z.number().default(0).describe("Page number (0-based)"),
-//       pageSize: z.number().default(50).describe("Number of results per page"),
+//       pageSize: z.number().default(5).describe("Number of results per page"),
 //     },
 //   },
 //   async ({ filterId, region, language, currency, pageNo, pageSize }) => {
