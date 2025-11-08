@@ -29,6 +29,7 @@ jobs:
           file: ./backend/Dockerfile
           push: true
           tags: |
+            nicoplattner/images:ttf-backend-${{ github.sha }}
             nicoplattner/images:ttf-backend
 
   deploy-cloudrun:
@@ -43,7 +44,7 @@ jobs:
       REGION: europe-central2
       AR_REPO: dockerhub-private-nico
       IMAGE_PATH: nicoplattner/images
-      IMAGE_TAG: ttf-backend
+      IMAGE_TAG: ttf-backend-${{ github.sha }}
       SERVICE: ttf-backend
 
     steps:
@@ -67,12 +68,19 @@ jobs:
         run: |
           docker pull ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_PATH }}:${{ env.IMAGE_TAG }}
 
-      - name: Deploy to Cloud Run (use default compute SA)
+      - name: Resolve digest in Artifact Registry
+        id: digest
+        run: |
+          DIGEST=$(gcloud artifacts docker images describe \
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_PATH }}:ttf-backend-${{ github.sha }} \
+            --format='value(image_summary.digest)')
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Cloud Run (by digest)
         run: |
           DEFAULT_SA="${{ env.PROJECT_NUMBER }}-compute@developer.gserviceaccount.com"
-
           gcloud run deploy "${{ env.SERVICE }}" \
-            --image="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_PATH }}:${{ env.IMAGE_TAG }}" \
+            --image="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_PATH }}@${{ steps.digest.outputs.digest }}" \
             --region="${{ env.REGION }}" \
             --platform=managed \
             --allow-unauthenticated \
