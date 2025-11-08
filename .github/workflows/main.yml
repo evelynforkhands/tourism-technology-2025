@@ -40,7 +40,7 @@ jobs:
     env:
       PROJECT_ID: homelab-461210
       REGION: europe-central2
-      AR_REPO: dockerhub
+      AR_REPO: dockerhub-private-nico
       IMAGE_PATH: nicoplattner/images
       IMAGE_TAG: ttf-backend
       SERVICE: ttf-backend
