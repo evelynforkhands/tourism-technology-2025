@@ -1,6 +1,7 @@
-import { defineConfig } from 'wxt';
+// wxt.config.ts
+import { defineConfig } from "wxt";
 
-// See https://wxt.dev/api/config.html
 export default defineConfig({
-  modules: ['@wxt-dev/module-react'],
+  modules: ["@wxt-dev/module-react"],
+  // no vite() override needed for Tailwind
 });
