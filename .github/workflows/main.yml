@@ -1,8 +1,7 @@
 name: Build and push Docker image
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-and-push:
@@ -30,4 +29,65 @@ jobs:
           file: ./backend/Dockerfile
           push: true
           tags: |
+            nicoplattner/images:ttf-backend-${{ github.sha }}
             nicoplattner/images:ttf-backend
+
+  deploy-cloudrun:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    env:
+      PROJECT_ID: homelab-461210
+      PROJECT_NUMBER: 665542325765
+      REGION: europe-central2
+      AR_REPO: dockerhub-private-nico
+      IMAGE_PATH: nicoplattner/images
+      IMAGE_TAG: ttf-backend-${{ github.sha }}
+      SERVICE: ttf-backend
+
+    steps:
+      - name: Checkout (optional)
+        uses: actions/checkout@v4
+
+      # Authenticate with JSON key (stored in GitHub secret GCP_SA_KEY)
+      - name: Auth to Google Cloud (JSON key)
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      # Warm the AR remote cache (optional; keeps behavior same as manual flow)
+      - name: Pull image via Artifact Registry remote
+        run: |
+          docker pull ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_PATH }}:${{ env.IMAGE_TAG }}
+
+      - name: Resolve digest in Artifact Registry
+        id: digest
+        run: |
+          set -euo pipefail
+          IMG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_PATH }}:${{ env.IMAGE_TAG }}"
+          DIGEST=$(gcloud artifacts docker images describe "$IMG" --format='value(image_summary.digest)')
+          if [ -z "$DIGEST" ]; then
+            echo "Failed to resolve digest for $IMG" >&2
+            exit 1
+          fi
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Cloud Run (by digest)
+        run: |
+          DEFAULT_SA="${{ env.PROJECT_NUMBER }}-compute@developer.gserviceaccount.com"
+          gcloud run deploy "${{ env.SERVICE }}" \
+            --image="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_PATH }}@${{ steps.digest.outputs.digest }}" \
+            --region="${{ env.REGION }}" \
+            --platform=managed \
+            --allow-unauthenticated \
+            --service-account="${DEFAULT_SA}" \
+            --port=8000 \
+            --quiet
