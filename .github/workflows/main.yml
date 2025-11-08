@@ -71,10 +71,14 @@ jobs:
       - name: Resolve digest in Artifact Registry
         id: digest
         run: |
-          DIGEST=$(gcloud artifacts docker images describe \
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_PATH }}:ttf-backend-${{ github.sha }} \
-            --format='value(image_summary.digest)')
-          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          IMG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_PATH }}:${{ env.IMAGE_TAG }}"
+          DIGEST=$(gcloud artifacts docker images describe "$IMG" --format='value(image_summary.digest)')
+          if [ -z "$DIGEST" ]; then
+            echo "Failed to resolve digest for $IMG" >&2
+            exit 1
+          fi
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
 
       - name: Deploy to Cloud Run (by digest)
         run: |
