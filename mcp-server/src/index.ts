@@ -131,6 +131,27 @@ async function authenticate(
   }
 }
 
+async function createFilter(): Promise<string> {
+  const result = await makeDSAPIRequest<{ id: string }>("/filters", {
+    method: "POST",
+    body: JSON.stringify({
+      filterObject: {
+        id: "00000000-0000-0000-0000-000000000000",
+        filterGeneral: {},
+        filterAddServices: {
+          types: null,
+          holidayThemes: null,
+          locations: null,
+          guestCards: null,
+          name: "",
+        },
+      },
+    }),
+  });
+  return result.id;
+}
+
+
 // ============================================================================
 // Server Setup
 // ============================================================================
@@ -147,65 +168,52 @@ const server = new McpServer(
   }
 );
 
-server.registerTool(
-    'echo',
-    {
-        title: 'Echo Tool',
-        description: 'Echoes back the provided message',
-        inputSchema: { message: z.string() },
-        outputSchema: { echo: z.string() }
-    },
-    async ({ message }) => {
-        const output = { echo: `Tool echo: ${message}` };
-        return {
-            content: [{ type: 'text', text: JSON.stringify(output) }],
-            structuredContent: output
-        };
-    }
-);
-
-server.registerResource(
-    'echo',
-    new ResourceTemplate('echo://{message}', { list: undefined }),
-    {
-        title: 'Echo Resource',
-        description: 'Echoes back messages as resources'
-    },
-    async (uri, { message }) => ({
-        contents: [
-            {
-                uri: uri.href,
-                text: `Resource echo: ${message}`
-            }
-        ]
-    })
-);
-
-server.registerPrompt(
-    'echo',
-    {
-        title: 'Echo Prompt',
-        description: 'Creates a prompt to process a message',
-        argsSchema: { message: z.string() }
-    },
-    ({ message }) => ({
-        messages: [
-            {
-                role: 'user',
-                content: {
-                    type: 'text',
-                    text: `Please process this message: ${message}`
-                }
-            }
-        ]
-    })
-);
 
 // ============================================================================
 // Tool Registration
 // ============================================================================
 
 
+// Experience Discovery
+server.registerTool(
+  "Get All Experiences",
+  {
+    title: "Get All Experiences",
+    description: "Get all the experiences from the DSAPI",
+    inputSchema: {
+      region: z
+        .enum(["kaernten"])
+        .default("kaernten")
+        .describe("Region code"),
+      language: z
+        .enum(["de", "en", "it"])
+        .default("de")
+        .describe("Language code"),
+      currency: z
+        .enum(["EUR", "USD", "GBP"])
+        .default("EUR")
+        .describe("Currency code"),
+      pageNo: z.number().default(0).describe("Page number (0-based)"),
+      pageSize: z.number().default(5).describe("Number of results per page"),
+    },
+  },
+  async ({ region, language, currency, pageNo, pageSize }) => {
+    const filterId = await createFilter();
+    const params = new URLSearchParams({
+      filterId,
+      currency,
+      pageNo: String(pageNo),
+      pageSize: String(pageSize),
+    });
+    const result = await makeDSAPIRequest<Record<string, unknown>>(
+      `/addservices/${region}/${language}/?${params.toString()}`
+    );
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      structuredContent: result,
+    };
+  }
+);
 // Search Management
 server.registerTool(
   "dsapi_create_search",
@@ -261,50 +269,6 @@ server.registerTool(
         searchObject: {
           id: searchId,
           searchGeneral: { dateFrom, dateTo },
-        },
-      }),
-    });
-    return {
-      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-      structuredContent: result,
-    };
-  }
-);
-
-// Filter Management
-server.registerTool(
-  "dsapi_create_filter",
-  {
-    title: "Create Filter",
-    description: "Create a filter object to constrain results by types/categories, locations, guest cards, and holiday themes. Returns a filter ID.",
-    inputSchema: {
-      types: z
-        .array(z.string())
-        .optional()
-        .describe("Array of type/category GUIDs to filter by"),
-      holidayThemes: z
-        .array(z.string())
-        .optional()
-        .describe("Array of holiday theme GUIDs"),
-      locations: z.array(z.string()).optional().describe("Array of location GUIDs"),
-      guestCards: z.array(z.string()).optional().describe("Array of guest card GUIDs"),
-      name: z.string().optional().describe("Name filter string"),
-    },
-  },
-  async ({ types, holidayThemes, locations, guestCards, name }) => {
-    const result = await makeDSAPIRequest<{ id: string }>("/filters", {
-      method: "POST",
-      body: JSON.stringify({
-        filterObject: {
-          id: "00000000-0000-0000-0000-000000000000",
-          filterGeneral: {},
-          filterAddServices: {
-            types: types || null,
-            holidayThemes: holidayThemes || null,
-            locations: locations || null,
-            guestCards: guestCards || null,
-            name: name || "",
-          },
         },
       }),
     });
