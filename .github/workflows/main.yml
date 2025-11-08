@@ -1,8 +1,5 @@
 name: Build and push Docker image
 
-on:
-  push:
-    branches: [ main ]
 
 jobs:
   build-and-push:
@@ -31,3 +28,35 @@ jobs:
           push: true
           tags: |
             nicoplattner/images:ttf-backend
+
+  deploy-cloudrun:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    env:
+      PROJECT_ID: homelab-461210
+      REGION: europe-central2
+      AR_REPO: dockerhub
+      IMAGE_PATH: nicoplattner/images
+      IMAGE_TAG: ttf-backend
+      SERVICE: ttf-backend
+      # Cloud Run runtime service account (the service runs as this):
+      RUNTIME_SA: cr-runtime@homelab-461210.iam.gserviceaccount.com
+
+    steps:
+      - name: Checkout (optional)
+        uses: actions/checkout@v4
+
+      # Authenticate with JSON key (stored in GitHub secret GCP_SA_KEY)
+      - name: Auth to Google Cloud (JSON key)
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
