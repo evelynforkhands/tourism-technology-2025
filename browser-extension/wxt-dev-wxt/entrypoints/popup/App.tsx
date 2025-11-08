@@ -1,20 +1,13 @@
-import { useState } from 'react';
-import reactLogo from '@/assets/react.svg';
-import wxtLogo from '/wxt.svg';
+import mountainLogo from '@/assets/mountain.svg';
 import './App.css';
 import MiniChat from '@/components/MiniChat';
 
 function App() {
-  const [count, setCount] = useState(0);
-
   return (
     <>
       <div>
-        <a href="https://wxt.dev" target="_blank">
-          <img src={wxtLogo} className="logo" alt="WXT logo" />
-        </a>
         <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
+          <img src={mountainLogo} className="logo" alt="Mountain logo" />
         </a>
       </div>
       <h2>BergRebels assistant</h2>
