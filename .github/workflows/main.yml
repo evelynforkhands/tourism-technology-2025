@@ -39,6 +39,7 @@ jobs:
 
     env:
       PROJECT_ID: homelab-461210
+      PROJECT_NUMBER: 665542325765
       REGION: europe-central2
       AR_REPO: dockerhub-private-nico
       IMAGE_PATH: nicoplattner/images
@@ -68,8 +69,7 @@ jobs:
 
       - name: Deploy to Cloud Run (use default compute SA)
         run: |
-          PROJECT_NUMBER=$(gcloud projects describe "${{ env.PROJECT_ID }}" --format='value(projectNumber)')
-          DEFAULT_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+          DEFAULT_SA="${{ env.PROJECT_NUMBER }}-compute@developer.gserviceaccount.com"
 
           gcloud run deploy "${{ env.SERVICE }}" \
             --image="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_PATH }}:${{ env.IMAGE_TAG }}" \
