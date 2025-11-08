@@ -77,4 +77,5 @@ jobs:
             --platform=managed \
             --allow-unauthenticated \
             --service-account="${DEFAULT_SA}" \
+            --port=8000 \
             --quiet
