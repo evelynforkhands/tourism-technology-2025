@@ -30,7 +30,7 @@ let bearerToken: string | null = null;
 // ============================================================================
 
 interface AuthResponse {
-  access_token: string;
+  token: string;
   expires_in: number;
   token_type: string;
 }
@@ -120,7 +120,7 @@ async function authenticate(
     }
 
     const data = (await response.json()) as AuthResponse;
-    bearerToken = data.access_token;
+    bearerToken = data.token;
     return data;
   } catch (error) {
     clearTimeout(timeoutId);
@@ -314,6 +314,8 @@ server.registerTool(
     };
   }
 );
+
+
 
 // server.registerTool(
 //   "dsapi_update_filter",
@@ -674,17 +676,20 @@ server.registerTool(
 app.post('/mcp', async(req, res) => {
     try{
         const transport = new StreamableHTTPServerTransport({sessionIdGenerator: undefined, enableJsonResponse: true});
-
+        console.warn('transport', transport);
         res.on('close', () => {
             transport.close();
         });
+
 
         res.on('error', (error) => {
             console.error('Error in MCP server:', error);
             transport.close();
         });
         await server.connect(transport);
+        console.warn('server connected');
         await transport.handleRequest(req, res, req.body);        
+        console.warn('transport handled');
     } catch (error) {
         console.error('Error in MCP server:', error);
         if(!res.headersSent){

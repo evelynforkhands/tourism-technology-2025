@@ -83,7 +83,7 @@ async function authenticate(username = DEFAULT_USERNAME, password = DEFAULT_PASS
             throw new Error(`Authentication failed: ${response.status}`);
         }
         const data = (await response.json());
-        bearerToken = data.access_token;
+        bearerToken = data.token;
         return data;
     }
     catch (error) {
@@ -583,6 +583,7 @@ server.registerTool("dsapi_create_filter", {
 app.post('/mcp', async (req, res) => {
     try {
         const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+        console.warn('transport', transport);
         res.on('close', () => {
             transport.close();
         });
@@ -591,7 +592,9 @@ app.post('/mcp', async (req, res) => {
             transport.close();
         });
         await server.connect(transport);
+        console.warn('server connected');
         await transport.handleRequest(req, res, req.body);
+        console.warn('transport handled');
     }
     catch (error) {
         console.error('Error in MCP server:', error);
