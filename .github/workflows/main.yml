@@ -31,7 +31,3 @@ jobs:
           push: true
           tags: |
             nicoplattner/images:ttf-backend
-            nicoplattner/images:ttf-backend:${{ github.sha }}
-
-      - name: Output pushed image
-        run: echo "Pushed nicoplattner/images:ttf-backend:${{ github.sha }}"
