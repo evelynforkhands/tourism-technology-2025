@@ -44,8 +44,6 @@ jobs:
       IMAGE_PATH: nicoplattner/images
       IMAGE_TAG: ttf-backend
       SERVICE: ttf-backend
-      # Cloud Run runtime service account (the service runs as this):
-      RUNTIME_SA: cr-runtime@homelab-461210.iam.gserviceaccount.com
 
     steps:
       - name: Checkout (optional)
@@ -68,12 +66,15 @@ jobs:
         run: |
           docker pull ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_PATH }}:${{ env.IMAGE_TAG }}
 
-      - name: Deploy to Cloud Run
+      - name: Deploy to Cloud Run (use default compute SA)
         run: |
+          PROJECT_NUMBER=$(gcloud projects describe "${{ env.PROJECT_ID }}" --format='value(projectNumber)')
+          DEFAULT_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+
           gcloud run deploy "${{ env.SERVICE }}" \
             --image="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_PATH }}:${{ env.IMAGE_TAG }}" \
             --region="${{ env.REGION }}" \
             --platform=managed \
             --allow-unauthenticated \
-            --service-account="${{ env.RUNTIME_SA }}" \
+            --service-account="${DEFAULT_SA}" \
             --quiet
