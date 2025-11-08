@@ -48,7 +48,7 @@ button {
   transition: border-color 0.25s;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: #ff6464;
 }
 button:focus,
 button:focus-visible {
@@ -68,7 +68,6 @@ button:focus-visible {
   }
 }
 
-
 .mini-chat {
   width: 100%;
   max-width: 420px;
@@ -82,10 +81,10 @@ button:focus-visible {
 .mini-chat__row { display: flex; }
 .mini-chat__row.user { justify-content: flex-end; }
 .mini-chat__row.bot { justify-content: flex-start; }
-.mini-chat__bubble { max-width: 85%; padding: .45rem .6rem; border-radius: 12px; background: #1f2937; color: #e5e7eb; }
-.mini-chat__row.user .mini-chat__bubble { background: #750381; color: #fff; }
+.mini-chat__bubble { max-width: 85%; padding: .45rem .6rem; border-radius: 12px; background: #107F7D; color: #e5e7eb; }
+.mini-chat__row.user .mini-chat__bubble { background: #094948; color: #fff; }
 .mini-chat__empty { opacity: .7; text-align: center; padding: .5rem; }
 .mini-chat__inputrow { display: flex; gap: .5rem; padding: .5rem; border-top: 1px solid rgba(127,127,127,0.2); }
 .mini-chat__input { flex: 1; border-radius: 10px; border: 1px solid rgba(127,127,127,0.35); background: transparent; color: inherit; padding: .45rem .6rem; }
 .mini-chat__send { border: 1px solid rgba(127,127,127,0.35); background: transparent; border-radius: 10px; padding: .45rem .7rem; cursor: pointer; }
-.mini-chat__send:hover { background: rgba(127,127,127,0.1); }
+.mini-chat__send:hover { background: #0d83de1a; }
