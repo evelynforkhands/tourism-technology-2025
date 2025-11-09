@@ -1235,44 +1235,58 @@ server.registerTool("getAllExperiencesFilteredBy",
     };
   }
 );
+server.registerTool('getAllAvailableFilters',
+  {
+    title: 'Get All Available Filters',
+    description: 'Get all the available filters',
+    inputSchema: {
+    },
+  },
+  () =>  ({
+    content: [{ type: "text", text: JSON.stringify(filterNames, null, 2) }],
+    structuredContent: { filters: filterNames },
+  })
+);
 
-// server.registerTool('getAllAvailableProductsForAnExperience'
-//   {
-//     title: 'Get All Available Products For An Experience',
-//     description: 'Get all the available products for an experience',
-//     inputSchema: {
-//       experienceId: z.string().describe('ID of the experience'),
-//       region: z
-//         .enum(["kaernten"])
-//         .default("kaernten")
-//         .describe("Region code"),
-//       language: z
-//         .enum(["de", "en", "it"])
-//         .default("de")
-//         .describe("Language code"),
-//       currency: z
-//         .enum(["EUR", "USD", "GBP"])
-//         .default("EUR")
-//         .describe("Currency code"),
-//       pageNo: z.number().default(0).describe("Page number (0-based)"),
-//       pageSize: z.number().default(5).describe("Number of results per page"),
-//     },
-//   },
-//   async ({ experienceId, region, language, currency, pageNo, pageSize }) => {
-//     const params = new URLSearchParams({
-//       currency,
-//       pageNo: String(pageNo),
-//       pageSize: String(pageSize),
-//     });
-//     const result = await makeDSAPIRequest<Record<string, unknown>>(
-//       `/addservices/${region}/${language}/${spIdentity}/services/${serviceId}/products?${params.toString()}`
-//     );
-//     return {
-//       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-//       structuredContent: result,
-//     };
-//   }
-// );
+server.registerTool('getAllAvailableProductsForAnExperience',
+  {
+    title: 'Get All Available Products For An Experience',
+    description: 'Get all the available products for an experience',
+    inputSchema: {
+      experienceId: z.string().describe('ID of the experience'),
+      spIdentity: z.string().describe('ID of the service provider'),
+      region: z
+        .enum(["kaernten"])
+        .default("kaernten")
+        .describe("Region code"),
+      language: z
+        .enum(["de", "en", "it"])
+        .default("de")
+        .describe("Language code"),
+      currency: z
+        .enum(["EUR", "USD", "GBP"])
+        .default("EUR")
+        .describe("Currency code"),
+      pageNo: z.number().default(0).describe("Page number (0-based)"),
+      pageSize: z.number().default(5).describe("Number of results per page"),
+    },
+  },
+  async ({ experienceId, spIdentity, region, language, currency, pageNo, pageSize }) => {
+    const params = new URLSearchParams({
+      currency,
+      pageNo: String(pageNo),
+      pageSize: String(pageSize),
+    });
+    const result = await makeDSAPIRequest<Record<string, unknown>>(
+      `/addservices/${region}/${language}/${spIdentity}/services/${experienceId}/products?${params.toString()}`
+    );
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      structuredContent: result,
+    };
+  }
+);
+
 
 
 server.registerTool(
