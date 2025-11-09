@@ -179,6 +179,21 @@ async function createFilter(): Promise<string> {
   });
   return result.id;
 }
+
+async function updateFilter(filterId: string, filterObject: any): Promise<string> {
+  const result = await makeDSAPIRequest<{ id: string }>(`/filters/${filterId}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      filterObject: {
+        id: filterId,
+        filterGeneral: {},
+        filterAddServices: filterObject,
+      },
+    }),
+  });
+  return result.id;
+}
+
 /**
  * Create a search object
  * @param dateFrom Start date in ISO 8601 format
@@ -1052,6 +1067,65 @@ const getFilters = (): Record<string, any[]> => {
     ]
 }
 }
+
+/**
+ * Maps filter objects to an array of names
+ * Transforms {types: [{id, name}], holidayThemes: [{id, name}], ...} to [name1, name2, ...]
+ */
+const mapFiltersToNameEnum = (filters: Record<string, any[]>): string[] => {
+  const names: string[] = [];
+  
+  for (const items of Object.values(filters)) {
+    for (const item of items) {
+      if (item.name && !names.includes(item.name)) {
+        names.push(item.name);
+      }
+    }
+  }
+  
+  return names;
+};
+
+/**
+ * Maps name array back to filter objects with id arrays grouped by category
+ * Transforms [name1, name2, ...] to {types: [id1, id2, ...], holidayThemes: [id3, ...], ...}
+ */
+const mapNameEnumToFilters = (
+  nameEnum: string[],
+  originalFilters: Record<string, any[]>
+): Record<string, string[]> => {
+  const result: Record<string, string[]> = {};
+  
+  // Create a map of name to item with category for quick lookup
+  const nameToItemMap = new Map<string, { id: string; category: string }>();
+  
+  for (const [category, items] of Object.entries(originalFilters)) {
+    for (const item of items) {
+      if (item.name && !nameToItemMap.has(item.name)) {
+        nameToItemMap.set(item.name, { 
+          id: item.id, 
+          category 
+        });
+      }
+    }
+  }
+  
+  // Group by category
+  for (const name of nameEnum) {
+    const item = nameToItemMap.get(name);
+    if (item) {
+      const category = item.category;
+      if (!result[category]) {
+        result[category] = [];
+      }
+      result[category].push(item.id);
+    }
+  }
+  
+  return result;
+};
+
+const filterNames = mapFiltersToNameEnum(getFilters());
 //#endregion
 
 
@@ -1124,6 +1198,8 @@ server.registerTool("getAllExperiencesFilteredBy",
     title: "Get All Experiences Filtered By",
     description: "Get all the experiences from the DSAPI filtered by a filter object",
     inputSchema: {
+      filters: z.array(z.enum(filterNames as [string, ...string[]]))
+      .describe("Filters that could be used to filter experiences"),
       region: z
         .enum(["kaernten"])
         .default("kaernten")
@@ -1140,10 +1216,12 @@ server.registerTool("getAllExperiencesFilteredBy",
       pageSize: z.number().default(5).describe("Number of results per page"),
     },
   },
-  async ({ region, language, currency, pageNo, pageSize }) => {
+  async ({ filters, region, language, currency, pageNo, pageSize }) => {
     const filterId = await createFilter();
+    const filterObject = mapNameEnumToFilters(filters, getFilters());
+    const updatedFilterId = await updateFilter(filterId, filterObject);
     const params = new URLSearchParams({
-      filterId,
+      filterId: updatedFilterId,
       currency,
       pageNo: String(pageNo),
       pageSize: String(pageSize),
@@ -1157,6 +1235,44 @@ server.registerTool("getAllExperiencesFilteredBy",
     };
   }
 );
+
+// server.registerTool('getAllAvailableProductsForAnExperience'
+//   {
+//     title: 'Get All Available Products For An Experience',
+//     description: 'Get all the available products for an experience',
+//     inputSchema: {
+//       experienceId: z.string().describe('ID of the experience'),
+//       region: z
+//         .enum(["kaernten"])
+//         .default("kaernten")
+//         .describe("Region code"),
+//       language: z
+//         .enum(["de", "en", "it"])
+//         .default("de")
+//         .describe("Language code"),
+//       currency: z
+//         .enum(["EUR", "USD", "GBP"])
+//         .default("EUR")
+//         .describe("Currency code"),
+//       pageNo: z.number().default(0).describe("Page number (0-based)"),
+//       pageSize: z.number().default(5).describe("Number of results per page"),
+//     },
+//   },
+//   async ({ experienceId, region, language, currency, pageNo, pageSize }) => {
+//     const params = new URLSearchParams({
+//       currency,
+//       pageNo: String(pageNo),
+//       pageSize: String(pageSize),
+//     });
+//     const result = await makeDSAPIRequest<Record<string, unknown>>(
+//       `/addservices/${region}/${language}/${spIdentity}/services/${serviceId}/products?${params.toString()}`
+//     );
+//     return {
+//       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+//       structuredContent: result,
+//     };
+//   }
+// );
 
 
 server.registerTool(
