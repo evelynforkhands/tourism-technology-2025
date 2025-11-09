@@ -89,18 +89,22 @@ async def agent(body: Any = Body(...)):
             base_url="https://oi.destination.one/api/v1/",
             api_key=api_key,
         ),
-        instructions="You are a helpful assistant. Use the conversation history to continue the dialogue.",
+        instructions="You are a helpful assistant. Use the conversation history to continue the dialogue. Always respond in English.",
         name="Azure OpenAI Assistant",
     )
-
+    
     prompt = (
         "Conversation history:\n"
         f"{conversation_history}\n\n"
-        "Assistant: First provide a concise, useful answer to the user's request. "
+        "Assistant: Please respond in English. First provide a concise, useful answer to the user's request. "
         "After that, explicitly ask whether the answer is specific enough or if the user has additional requirements. "
         "If the user's intent is unclear, ask clarifying questions about their goal, constraints (time, budget, location), "
         "desired output format, examples or preferences, and any other important details. "
-        "If the intent is clear, give a concise, actionable response and suggest next steps or follow-up questions."
+        "If the intent is clear, give a concise, actionable response and suggest next steps or follow-up questions. "
+        "If any of the tools returned images (URLs, image files, or base64-encoded images), include them after your text answer. "
+        "Prefer displaying images as Markdown image links (e.g., ![alt text](image_url)). "
+        "If a tool returned base64 image data, embed it as a data URL in a Markdown image tag. "
+        "For each image include a short caption and the source/tool name. Always respond in English."
     )
 
     completion = await agent.run(prompt, tools=[tools])
