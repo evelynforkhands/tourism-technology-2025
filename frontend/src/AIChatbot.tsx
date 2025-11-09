@@ -7,6 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Trash2, Send } from "lucide-react";
 import { nanoid } from "nanoid";
 import { sendChat } from "@/lib/api";
+import mountainLogo from '@/assets/mountain.svg';
+
 
 type ChatMessage = {
   id: string;
@@ -175,26 +177,31 @@ export default function AIChatbot() {
   }, []);
 
   return (
-    <Card className="flex h-full w-full max-w-full flex-col overflow-hidden bg-background rounded-xl shadow-lg">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b bg-muted/40 px-3 py-2">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-          <span className="text-sm font-medium">AI Assistant</span>
-        </div>
+    <Card className="flex h-full w-full max-w-full flex-col overflow-hidden bg-background">
+  <div className="relative flex items-center border-b py-4">
+    <a className="absolute left-3 flex items-center">
+      <img
+        src={mountainLogo}
+        alt="Mountain logo"
+        className="logo h-10 w-auto"
+      />
+    </a>
+    <div className="flex flex-1 justify-center">
+      <span className="text-sm font-medium">BergRebels Assistant</span>
+    </div>
 
-        {/* Clear chat */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={handleClear}
-          disabled={isTyping}
-          title="Clear Chat"
-        >
-          <Trash2 className="h-4 w-4 text-destructive" />
-        </Button>
-      </div>
+    {/* Right: Clear chat */}
+    <Button
+      variant="ghost"
+      size="icon"
+      className="absolute right-3 h-7 w-7"
+      onClick={handleClear}
+      disabled={isTyping}
+      title="Clear Chat"
+    >
+      <Trash2 className="h-4 w-4 text-destructive" />
+    </Button>
+  </div>
 
       {/* Conversation */}
       <ScrollArea className="flex-1 px-3 py-3 overflow-x-hidden">
