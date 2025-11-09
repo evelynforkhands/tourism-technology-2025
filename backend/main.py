@@ -32,7 +32,20 @@ async def agent_deprecated():
 
 
 @app.post("/agent")
-async def agent(messages: List[Dict[str, Any]] = Body(...)):
+async def agent(body: Any = Body(...)):
+    """
+    Accept either:
+      - a top-level list: [ {role:..., content:...}, ... ]
+      - or an object with messages: { "messages": [ ... ] }
+    """
+    # normalize incoming body to a list of message dicts
+    if isinstance(body, dict) and "messages" in body and isinstance(body["messages"], list):
+        messages = body["messages"]
+    elif isinstance(body, list):
+        messages = body
+    else:
+        raise HTTPException(status_code=400, detail="Request must be a list of message objects or an object with a 'messages' list")
+
     api_key = os.getenv("API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="API_KEY not set in environment")
@@ -83,9 +96,11 @@ async def agent(messages: List[Dict[str, Any]] = Body(...)):
     prompt = (
         "Conversation history:\n"
         f"{conversation_history}\n\n"
-        "Assistant: Before providing a final answer, ask the user clarifying questions to understand exactly what they want. "
-        "Ask about their goal, any constraints (time, budget, location), desired output format, examples or preferences, and any other important details. "
-        "If the intent is already clear, give a concise, actionable response and suggest next steps or follow-up questions."
+        "Assistant: First provide a concise, useful answer to the user's request. "
+        "After that, explicitly ask whether the answer is specific enough or if the user has additional requirements. "
+        "If the user's intent is unclear, ask clarifying questions about their goal, constraints (time, budget, location), "
+        "desired output format, examples or preferences, and any other important details. "
+        "If the intent is clear, give a concise, actionable response and suggest next steps or follow-up questions."
     )
 
     completion = await agent.run(prompt, tools=[tools])
