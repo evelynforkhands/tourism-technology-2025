@@ -16,7 +16,11 @@ def read_root():
     return {"Hello": "World"}
 
 @app.get("/agent")
-async def read_agent():
+async def agent_deprecated():
+    return {"answer": "This endpoint is deprecated."}
+
+@app.post("/agent")
+async def agent():
     api_key = os.getenv("API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="API_KEY not set in environment")
@@ -36,7 +40,7 @@ async def read_agent():
         name="Azure OpenAI Assistant"
     )
 
-    completion = await agent.run("Hello, how can you assist me today?", tools=[tools])
+    completion = await agent.run("Tell me about all experiences", tools=[tools])
     answer = completion.text
 
     return {"answer": answer}
