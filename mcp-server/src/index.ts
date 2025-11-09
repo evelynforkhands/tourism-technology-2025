@@ -1340,9 +1340,23 @@ server.registerTool('getAllAvailableProductsForAnExperience',
       pageNo: String(pageNo),
       pageSize: String(pageSize),
     });
-    const result = await makeDSAPIRequest<Record<string, unknown>>(
-      `/addservices/kaernten/${language}/${spIdentity}/services/${experienceId}/products?${params.toString()}`
-    );
+    // Prepare additional required query params per API docs
+    const query = new URLSearchParams({
+      fields: 'id,name,isFreeBookable,price{from,to,insteadFrom,insteadTo}',
+      sortingFields: '',
+      currency,
+      limAddSrvTHEME: '38723CC4-C5F0-4707-9401-5F598D892246',
+      limExAccShSPwoPr: 'false',
+      armin: 'test',
+      ...Object.fromEntries(params.entries())
+      // NOTE: filterId would be added here if you had it available in input/context
+    });
+
+    // See API path: .../addservices/kaernten/de/KTN/{{spIdentity}}/services/{{serviceID}}/products...
+    // Use 'KTN' for static poscode, per supplied API route.
+    const path = `/addservices/kaernten/${language}/KTN/${spIdentity}/services/${experienceId}/products?${query.toString()}`;
+
+    const result = await makeDSAPIRequest<Record<string, unknown>>(path);
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       structuredContent: result,
