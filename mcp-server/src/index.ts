@@ -14,6 +14,7 @@ import { z } from "zod";
 import express from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { json } from "stream/consumers";
+import { randomUUID } from "crypto";
 // DSAPI Configuration
 const DSAPI_BASE = "https://dsapi.deskline.net";
 const DEFAULT_USERNAME = "TTFHACKTL";
@@ -57,38 +58,57 @@ async function makeDSAPIRequest<T>(
   }
 
   const url = `${DSAPI_BASE}${endpoint}`;
-  
+
   // Create AbortController for timeout
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    // Normalize provided headers to an object
+    const providedHeadersObj: Record<string, string> = Object.fromEntries(
+      new Headers(options.headers as HeadersInit).entries()
+    );
+
+    // ensure a non-empty DW-SessionId header (use provided one if present, otherwise generate)
+    const dwSessionId =
+      providedHeadersObj["dw-sessionid"] ||
+      providedHeadersObj["dw-session-id"] ||
+      providedHeadersObj["DW-SessionId"] ||
+      randomUUID();
+
+    const headers: Record<string, string> = {
+      ...providedHeadersObj,
+      "DW-SessionId": dwSessionId,
+      Authorization: `Bearer ${bearerToken}`,
+      "Content-Type": "application/json",
+    };
+
     const response = await fetch(url, {
       ...options,
-      headers: {
-        Authorization: `Bearer ${bearerToken}`,
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
+      headers,
       signal: controller.signal,
     });
 
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      if(response.status === 401){
+      if (response.status === 401) {
         await authenticate();
-        return makeDSAPIRequest(endpoint, options, timeoutMs);
+        return makeDSAPIRequest<T>(endpoint, options, timeoutMs);
       }
       const errorText = await response.text();
-      console.error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
-      throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
+      console.error(
+        `API request failed: ${response.status} ${response.statusText} - ${errorText}`
+      );
+      throw new Error(
+        `API request failed: ${response.status} ${response.statusText} - ${errorText}`
+      );
     }
 
     return (await response.json()) as T;
   } catch (error) {
     clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (error instanceof Error && error.name === "AbortError") {
       throw new Error(`Request timeout after ${timeoutMs}ms: ${endpoint}`);
     }
     throw error;
@@ -103,7 +123,9 @@ async function authenticate(
   password: string = DEFAULT_PASSWORD,
   timeoutMs: number = 10000
 ): Promise<AuthResponse> {
-  const url = `${DSAPI_BASE}/Auth?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+  const url = `${DSAPI_BASE}/Auth?username=${encodeURIComponent(
+    username
+  )}&password=${encodeURIComponent(password)}`;
 
   // Create AbortController for timeout
   const controller = new AbortController();
@@ -129,7 +151,7 @@ async function authenticate(
     return data;
   } catch (error) {
     clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (error instanceof Error && error.name === "AbortError") {
       throw new Error(`Authentication timeout after ${timeoutMs}ms`);
     }
     throw error;
