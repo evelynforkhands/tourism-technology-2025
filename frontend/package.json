@@ -23,6 +23,7 @@
     "harden-react-markdown": "^1.1.5",
     "katex": "^0.16.25",
     "lucide-react": "^0.553.0",
+    "nanoid": "^5.1.6",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-markdown": "^10.1.0",

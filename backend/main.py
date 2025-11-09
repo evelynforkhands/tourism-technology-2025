@@ -1,8 +1,8 @@
-from typing import Union
+from typing import Union, List, Dict, Any
 from agent_framework import ChatAgent, MCPStreamableHTTPTool
 from agent_framework.openai import OpenAIChatClient
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
@@ -32,10 +32,38 @@ async def agent_deprecated():
 
 
 @app.post("/agent")
-async def agent():
+async def agent(messages: List[Dict[str, Any]] = Body(...)):
     api_key = os.getenv("API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="API_KEY not set in environment")
+
+    # sanitize and normalize incoming messages
+    normalized: List[Dict[str, Any]] = []
+    for item in messages:
+        if not isinstance(item, dict):
+            continue
+        role = item.get("role", "user")
+        content = item.get("content") or item.get("message") or ""
+        timestamp = item.get("timestamp")
+        normalized.append({"role": role, "content": content, "timestamp": timestamp})
+
+    if not normalized:
+        raise HTTPException(status_code=400, detail="Request must contain a non-empty list of message objects")
+
+    # sort by timestamp if present (ISO strings sort correctly); keep original order if not
+    try:
+        normalized.sort(key=lambda m: m.get("timestamp") or "")
+    except Exception:
+        pass
+
+    # build a simple conversation history string for the agent
+    history_lines = []
+    for m in normalized:
+        role = m["role"]
+        content = m["content"].strip()
+        if content:
+            history_lines.append(f"{role}: {content}")
+    conversation_history = "\n".join(history_lines)
 
     tools = MCPStreamableHTTPTool(
         name="Experience Booking MCP Server",
@@ -48,11 +76,19 @@ async def agent():
             base_url="https://oi.destination.one/api/v1/",
             api_key=api_key,
         ),
-        instructions="You are a helpful assistant.",
+        instructions="You are a helpful assistant. Use the conversation history to continue the dialogue.",
         name="Azure OpenAI Assistant",
     )
 
-    completion = await agent.run("Tell me about all experiences", tools=[tools])
+    prompt = (
+        "Conversation history:\n"
+        f"{conversation_history}\n\n"
+        "Assistant: Before providing a final answer, ask the user clarifying questions to understand exactly what they want. "
+        "Ask about their goal, any constraints (time, budget, location), desired output format, examples or preferences, and any other important details. "
+        "If the intent is already clear, give a concise, actionable response and suggest next steps or follow-up questions."
+    )
+
+    completion = await agent.run(prompt, tools=[tools])
     answer = completion.text
 
     return {"answer": answer}
