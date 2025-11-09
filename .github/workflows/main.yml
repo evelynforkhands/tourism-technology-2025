@@ -22,7 +22,7 @@ jobs:
           username: nicoplattner
           password: ${{ secrets.DOCKERHUB_PAT }}
 
-      - name: Build and push image
+      - name: Build and push backend image
         uses: docker/build-push-action@v4
         with:
           context: ./backend
@@ -31,6 +31,16 @@ jobs:
           tags: |
             nicoplattner/images:ttf-backend-${{ github.sha }}
             nicoplattner/images:ttf-backend
+
+      - name: Build and push mcp server image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./mcp-server
+          file: ./mcp-server/Dockerfile
+          push: true
+          tags: |
+            nicoplattner/images:ttf-mcp-server-${{ github.sha }}
+            nicoplattner/images:ttf-mcp-server
 
   deploy-cloudrun:
     needs: build-and-push
@@ -45,6 +55,7 @@ jobs:
       AR_REPO: dockerhub-private-nico
       IMAGE_PATH: nicoplattner/images
       IMAGE_TAG: ttf-backend-${{ github.sha }}
+      IMAGE_TAG_MCP: ttf-mcp-server-${{ github.sha }}
       SERVICE: ttf-backend
 
     steps:
@@ -67,6 +78,7 @@ jobs:
       - name: Pull image via Artifact Registry remote
         run: |
           docker pull ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_PATH }}:${{ env.IMAGE_TAG }}
+          docker pull ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_PATH }}:${{ env.IMAGE_TAG_MCP }}
 
       - name: Resolve digest in Artifact Registry
         id: digest
