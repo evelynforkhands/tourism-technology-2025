@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "AI Chat Extension",
+  "version": "1.0.0",
+  "description": "ChatGPT-style AI chatbot UI built with React & shadcn/ui.",
+  "action": {
+    "default_popup": "index.html",
+    "default_icon": "user-avatar.png",
+    "default_title": "AI Chat"
+  }
+}
