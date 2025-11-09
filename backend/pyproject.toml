@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "agent-framework>=1.0.0b251108",
+    "agent-framework>=1.0.0b251108  ",
     "dotenv>=0.9.9",
     "fastapi[standard]>=0.121.0",
 ]
