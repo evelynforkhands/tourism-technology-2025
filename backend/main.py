@@ -1,5 +1,5 @@
 from typing import Union
-from agent_framework import ChatAgent
+from agent_framework import ChatAgent, MCPStreamableHTTPTool
 from agent_framework.openai import OpenAIChatClient
 
 from fastapi import FastAPI, HTTPException
@@ -13,13 +13,18 @@ app = FastAPI()
 
 @app.get("/")
 def read_root():
-    return {"Hello": "World 2"}
+    return {"Hello": "World"}
 
 @app.get("/agent")
 async def read_agent():
     api_key = os.getenv("API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="API_KEY not set in environment")
+
+    tools = MCPStreamableHTTPTool(
+        name="Experience Booking MCP Server",
+        url="https://ttf-mcp-server-665542325765.europe-central2.run.app/mcp"
+    )
 
     agent = ChatAgent(
         chat_client=OpenAIChatClient(
@@ -31,12 +36,7 @@ async def read_agent():
         name="Azure OpenAI Assistant"
     )
 
-    completion = await agent.run("Hello, how can you assist me today?")
+    completion = await agent.run("Hello, how can you assist me today?", tools=[tools])
     answer = completion.text
 
     return {"answer": answer}
-
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
