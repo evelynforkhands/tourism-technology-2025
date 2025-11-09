@@ -43,7 +43,7 @@ htmlcov/
 
 # Environment files
 .env
-.env.* 
+.env.local
 
 # Jupyter
 .ipynb_checkpoints
