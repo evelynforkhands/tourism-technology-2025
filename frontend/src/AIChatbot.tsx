@@ -20,6 +20,69 @@ type ChatMessage = {
 
 const STORAGE_KEY = "ai-chat-conversation-v1";
 
+type MessageBodyProps = {
+  content: string;
+};
+
+function MessageBody({ content }: MessageBodyProps) {
+  // Split into logical lines/paragraphs
+  const lines = content.split("\n").filter((line) => line.trim() !== "");
+
+  return (
+    <div className="space-y-1">
+      {lines.map((line, index) => {
+        // Look for markdown image: ![alt](url)
+        const match = line.match(/!\[(.*?)\]\((.*?)\)/);
+
+        if (!match) {
+          // No image in this line → just render text
+          return (
+            <p key={index} className="break-words">
+              {line}
+            </p>
+          );
+        }
+
+        const [, altRaw, urlRaw] = match;
+        let url = urlRaw.trim();
+        const alt = (altRaw || "Image").trim() || "Image";
+
+        // Handle URLs that start with // (protocol-relative)
+        if (url.startsWith("//")) {
+          url = "https:" + url;
+        }
+
+        const before = line.slice(0, match.index ?? 0).trim();
+        const after = line
+          .slice((match.index ?? 0) + match[0].length)
+          .trim();
+
+        return (
+          <div key={index} className="space-y-1">
+            {before && (
+              <p className="break-words">
+                {before}
+              </p>
+            )}
+
+            <img
+              src={url}
+              alt={alt}
+              className="mt-1 w-full max-h-40 rounded-md border object-cover"
+            />
+
+            {after && (
+              <p className="break-words">
+                {after}
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AIChatbot() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -229,21 +292,21 @@ export default function AIChatbot() {
                   )}
 
                   <div
-                    className={`max-w-[80%] min-w-0 overflow-hidden break-words rounded-md px-3 py-2 text-sm whitespace-pre-wrap ${
-                      isUser
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground"
-                    }`}
-                  >
-                    {isStreaming && !message.content ? (
-                      <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-foreground" />
-                        Thinking...
-                      </span>
-                    ) : (
-                      message.content
-                    )}
-                  </div>
+                  className={`max-w-[80%] min-w-0 overflow-hidden rounded-md px-3 py-2 text-sm ${
+                    isUser
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground"
+                  }`}
+                >
+                  {isStreaming && !message.content ? (
+                    <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-foreground" />
+                      Thinking...
+                    </span>
+                  ) : (
+                    <MessageBody content={message.content} />
+                  )}
+                </div>
 
                   {isUser && (
                     <Avatar className="h-9 w-9 overflow-hidden rounded-full">
