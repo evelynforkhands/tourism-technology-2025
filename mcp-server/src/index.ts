@@ -1317,14 +1317,11 @@ server.registerTool('getAllExperiencesFilteredByDateAndFilter',
 server.registerTool('getAllAvailableProductsForAnExperience',
   {
     title: 'Get All Available Products For An Experience',
-    description: 'Get all the available products for an previously selected experience',
+    description: 'Get all available products (purchasable items) for a previously selected experience. Products are specific variants of an experience, such as different ticket types, date/time slots, pricing tiers, package options, or other purchasable configurations. Each product represents a concrete item that can be purchased. Only products with the "isBookable" parameter set to true can be added to the shopping basket.',
     inputSchema: {
       experienceId: z.string().describe('ID of the experience'),
       spIdentity: z.string().describe('ID of the service provider'),
-      region: z
-        .enum(["kaernten"])
-        .default("kaernten")
-        .describe("Region code"),
+     
       language: z
         .enum(["de", "en", "it"])
         .default("de")
@@ -1337,14 +1334,14 @@ server.registerTool('getAllAvailableProductsForAnExperience',
       pageSize: z.number().default(5).describe("Number of results per page"),
     },
   },
-  async ({ experienceId, spIdentity, region, language, currency, pageNo, pageSize }) => {
+  async ({ experienceId, spIdentity, language, currency, pageNo, pageSize }) => {
     const params = new URLSearchParams({
       currency,
       pageNo: String(pageNo),
       pageSize: String(pageSize),
     });
     const result = await makeDSAPIRequest<Record<string, unknown>>(
-      `/addservices/${region}/${language}/${spIdentity}/services/${experienceId}/products?${params.toString()}`
+      `/addservices/kaernten/${language}/${spIdentity}/services/${experienceId}/products?${params.toString()}`
     );
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
@@ -1355,19 +1352,19 @@ server.registerTool('getAllAvailableProductsForAnExperience',
 
 server.registerTool('addToBasket',
   {
-    title: 'Add To Basket',
-    description: 'Add an item to the basket',
+    title: 'Add Products To Basket',
+    description: 'Add multiple experiences products (purchasable items) to the basket, creates a shopping list if it does not exist and adds the products to it, returns the shopping list id and the products added',
     inputSchema: {
-      region: z.string().describe('Region code'),
-      items: z.array(z.string()).describe('Items to add to the basket'),
+    
+      products: z.array(z.string()).describe('Products (purchasable items) to add to the basket, they belong to an experience, only the available products can be added to the basket and if they are bookable'),
     },
   },
-  async ({ region, items }) => {
-    const shoppingListId = await createShoppingList(region);
-    const result = await addToShoppingList(region, shoppingListId, items);
+  async ({ products }) => {
+    const shoppingListId = await createShoppingList("kaernten");
+    const result = await addToShoppingList("kaernten", shoppingListId, products);
     return ({
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-      structuredContent: { shoppingListId: shoppingListId, items: items, result: result },
+      structuredContent: { shoppingListId: shoppingListId, result: result },
     })
   }
 );
