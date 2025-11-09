@@ -180,6 +180,7 @@ async function createFilter(): Promise<string> {
   return result.id;
 }
 
+
 async function updateFilter(filterId: string, filterObject: any): Promise<string> {
   const result = await makeDSAPIRequest<{ id: string }>(`/filters/${filterId}`, {
     method: "PUT",
@@ -1172,7 +1173,7 @@ server.registerTool(
         .default("EUR")
         .describe("Currency code"),
       pageNo: z.number().default(0).describe("Page number (0-based)"),
-      pageSize: z.number().default(5).describe("Number of results per page"),
+      pageSize: z.number().default(10).describe("Number of results per page"),
     },
   },
   async ({ region, language, currency, pageNo, pageSize }) => {
@@ -1213,7 +1214,7 @@ server.registerTool("getAllExperiencesFilteredBy",
         .default("EUR")
         .describe("Currency code"),
       pageNo: z.number().default(0).describe("Page number (0-based)"),
-      pageSize: z.number().default(5).describe("Number of results per page"),
+      pageSize: z.number().default(200).describe("Number of results per page"),
     },
   },
   async ({ filters, region, language, currency, pageNo, pageSize }) => {
@@ -1248,6 +1249,51 @@ server.registerTool('getAllAvailableFilters',
   })
 );
 
+server.registerTool('getAllExperiencesFilteredByDateAndFilter',
+  {
+    title: 'Get All Experiences Filtered By Date And Filter',
+    description: 'Get all the experiences from the DSAPI filtered by a date range and a filter',
+    inputSchema: {
+      dateFrom: z.string().describe('Start date in ISO 8601 format'),
+      dateTo: z.string().describe('End date in ISO 8601 format'),
+      filters: z.array(z.enum(filterNames as [string, ...string[]]))
+      .describe('Filters that could be used to filter experiences'),
+      region: z
+        .enum(["kaernten"])
+        .default("kaernten")
+        .describe("Region code"),
+      language: z
+        .enum(["de", "en", "it"])
+        .default("de")
+        .describe("Language code"),
+      currency: z
+        .enum(["EUR", "USD", "GBP"])
+        .default("EUR")
+        .describe("Currency code"),
+      pageNo: z.number().default(0).describe("Page number (0-based)"),
+      pageSize: z.number().default(500).describe("Number of results per page"),
+    },
+  },
+  async ({ dateFrom, dateTo, filters, region, language, currency, pageNo, pageSize }) => {
+    const filterId = await createFilter();
+    const searchId = await createSearch(dateFrom, dateTo);
+    const filterObject = mapNameEnumToFilters(filters, getFilters());
+    const updatedFilterId = await updateFilter(filterId, filterObject);
+    const params = new URLSearchParams({
+      filterId: updatedFilterId,
+      currency,
+      pageNo: String(pageNo),
+      pageSize: String(pageSize),
+    });
+    const result = await makeDSAPIRequest<Record<string, unknown>>(
+      `/addservices/${region}/${language}/searchresults/${searchId}?${params.toString()}`
+    );
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      structuredContent: result,
+    };
+  }
+);
 server.registerTool('getAllAvailableProductsForAnExperience',
   {
     title: 'Get All Available Products For An Experience',
