@@ -89,14 +89,14 @@ async def agent(body: Any = Body(...)):
             base_url="https://oi.destination.one/api/v1/",
             api_key=api_key,
         ),
-        instructions="You are a helpful assistant. Use the conversation history to continue the dialogue.",
+        instructions="You are a helpful assistant. Use the conversation history to continue the dialogue. Always respond in English.",
         name="Azure OpenAI Assistant",
     )
-
+    
     prompt = (
         "Conversation history:\n"
         f"{conversation_history}\n\n"
-        "Assistant: First provide a concise, useful answer to the user's request. "
+        "Assistant: Please respond in English. First provide a concise, useful answer to the user's request. "
         "After that, explicitly ask whether the answer is specific enough or if the user has additional requirements. "
         "If the user's intent is unclear, ask clarifying questions about their goal, constraints (time, budget, location), "
         "desired output format, examples or preferences, and any other important details. "
