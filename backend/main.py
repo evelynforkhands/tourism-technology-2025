@@ -100,7 +100,11 @@ async def agent(body: Any = Body(...)):
         "After that, explicitly ask whether the answer is specific enough or if the user has additional requirements. "
         "If the user's intent is unclear, ask clarifying questions about their goal, constraints (time, budget, location), "
         "desired output format, examples or preferences, and any other important details. "
-        "If the intent is clear, give a concise, actionable response and suggest next steps or follow-up questions."
+        "If the intent is clear, give a concise, actionable response and suggest next steps or follow-up questions. "
+        "If any of the tools returned images (URLs, image files, or base64-encoded images), include them after your text answer. "
+        "Prefer displaying images as Markdown image links (e.g., ![alt text](image_url)). "
+        "If a tool returned base64 image data, embed it as a data URL in a Markdown image tag. "
+        "For each image include a short caption and the source/tool name. Always respond in English."
     )
 
     completion = await agent.run(prompt, tools=[tools])
