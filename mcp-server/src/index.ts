@@ -1372,21 +1372,21 @@ server.registerTool('addToBasket',
   }
 );
 
-// server.registerTool('getCheckoutUrl', {
-//   title: 'Get Checkout URL',
-//   description: 'Get the checkout URL for the shopping list',
-//   inputSchema: {
-//     shoppingListId: z.string().describe('ID of the shopping list already created'),
-//   },
-// },
-// async ({shoppingListId}) => {
-//     const result = `https://work.schanitz.at/onlim/shoppingcart/?initcart=true&poscode=KTN&shoppinglist=${shoppingListId}`;
-//     return ({
-//       content: [{ type: "resource_link", resource: { name: "Finish booking here:", uri: result } }],
-//       structuredContent: { title: "Finish booking here:", uri: result },
-//     })
-//   }
-// );
+server.registerTool('getCheckoutUrl', {
+  title: 'Get Checkout URL',
+  description: 'Get the checkout URL for the shopping list',
+  inputSchema: {
+    shoppingListId: z.string().describe('ID of the shopping list already created'),
+  },
+},
+ async ({shoppingListId}) => {
+    const result = `https://work.schanitz.at/onlim/shoppingcart/?initcart=true&poscode=KTN&shoppinglist=${shoppingListId}`;
+    return ({
+      content: [{ type: "text", text: result }],
+      structuredContent: { checkoutUrl: result },
+    })
+  }
+);
 
 
 
