@@ -333,3 +333,5 @@ This project was created for the Tourism Technology 2025 Challenge 2. Contributi
 ---
 
 **Built for Tourism Technology 2025 - Challenge 2**
+
+[Link to pitch presentation](https://www.canva.com/design/DAG4MbazJ_4/J8kqmC1fZKOesKXtyEqhfA/edit?utm_content=DAG4MbazJ_4&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
